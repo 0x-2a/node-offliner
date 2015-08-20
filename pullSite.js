@@ -102,7 +102,8 @@ request(opts, function (err, res, body) {
     var filePath = writeDirectory + resource.fileName;
 
     if (fs.existsSync(filePath)) {
-      console.warn("Overwriting", filePath);
+      console.warn("Already have file:", filePath);
+      return callback()
     }
 
     console.log("Writing to file path:", filePath);
