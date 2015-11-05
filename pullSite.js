@@ -5,9 +5,13 @@ var fs = require('fs');
 var URI = require('URIjs');
 var sanitize = require("sanitize-filename");
 var mkdirp = require('mkdirp');
+var moment = require('moment');
+var htmlMinify = require('html-minifier').minify;
 
 var host = "tumblr.com";
 var path = "/";
+//var host = "kickstarter.com";
+//var path = "/projects/khaoskreator/shades-of-a-omnibus-limited-edition-hardback.html?ref=popular";
 
 var opts = {
   url: "http://" + host + path,
@@ -29,12 +33,43 @@ console.log("Requesting Page: ", opts.url);
 request(opts, function (err, res, body) {
   if (err) {
     console.error("Couldn't load page", err);
-    return
+    return;
   }
 
   console.log("Got response, beginning to process.");
 
   var fileUrlMap = {};
+
+  body = htmlMinify(body, {
+    removeComments: true,
+    minifyJS: {
+			fromString: true,
+			warnings: true,
+			mangle: false,
+			compress: {
+				sequences: false,  // join consecutive statemets with the “comma operator”
+				properties: false,  // optimize property access: a["foo"] → a.foo
+				dead_code: false,  // discard unreachable code
+				drop_debugger: false,  // discard “debugger” statements
+				unsafe: false, // some unsafe optimizations (see below)
+				conditionals: false,  // optimize if-s and conditional expressions
+				comparisons: false,  // optimize comparisons
+				evaluate: false,  // evaluate constant expressions
+				booleans: false,  // optimize boolean expressions
+				loops: false,  // optimize loops
+				unused: false,  // drop unused variables/functions
+				hoist_funs: false,  // hoist function declarations
+				hoist_vars: false, // hoist variable declarations
+				if_return: false,  // optimize if-s followed by return/continue
+				join_vars: false,  // join var declarations
+				cascade: false,  // try to cascade `right` into `left` in sequences
+				side_effects: false,  // drop side-effect-free statements
+				warnings: true,  // warn about potentially dangerous optimizations/code
+				global_defs: {}     // global definitions
+			}
+    }
+  });
+
   var $ = cheerio.load(body);
   var domItems = $("*");
   _(domItems).each(function (domItem) {
@@ -47,6 +82,8 @@ request(opts, function (err, res, body) {
     } else if ($domItem.is("script")) {
       resourceLink = $domItem.attr("src");
     } else if ($domItem.is("img")) {
+      resourceLink = $domItem.attr("src");
+    } else if ($domItem.attr("src")) {
       resourceLink = $domItem.attr("src");
     }
 
@@ -75,13 +112,15 @@ request(opts, function (err, res, body) {
         $domItem.attr("src", fileName);
       } else if ($domItem.is("img")) {
         $domItem.attr("src", fileName);
+      } else if ($domItem.attr("src")) {
+        $domItem.attr("src", fileName);
       }
 
       console.log(resourceLink, fileName);
     }
   });
 
-  var writeDirectory = host + "/";
+  var writeDirectory = "sites/" + host + "-" + moment().format('YYYY-MM-DD-h-mm-ss') + "/";
 
   mkdirp(writeDirectory, function (err) {
     if (err) console.error(err);
@@ -110,7 +149,7 @@ request(opts, function (err, res, body) {
 
     request({
       url: resource.url,
-      method: "GET",
+      method: "GET"
       //headers: {
       //  "Host": host,
       //  "Connection": "keep-alive",
